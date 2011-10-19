@@ -1,7 +1,14 @@
 package com.vaguehope.rokoro;
 
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.logging.Logger;
 
+import org.cometd.Channel;
+import org.cometd.Client;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -57,6 +64,21 @@ public class Main {
 		
 		// This must be done after server is started getBayeux() is null before then.
 		cometdServlet.getBayeux().setTimeout(20000); // set long-poll timeout to 20 seconds.
+		
+		// Demo server interaction.
+		final Client client = cometdServlet.getBayeux().newClient("server");
+		final Channel ch = cometdServlet.getBayeux().getChannel("/hello", true);
+		Timer timer = new Timer();
+		timer.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run () {
+				Map<String, Object> data = new HashMap<String, Object>();
+				String msg = "server[" + new Date() + "]";
+				data.put("greeting", msg);
+				ch.publish(client, data, null);
+				System.out.println("send msg: " + msg);
+			}
+		}, 10000, 60000);
 		
 		// Wait for server thread.
 		logger.info("Server ready.");
