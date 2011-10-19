@@ -1,7 +1,86 @@
 <html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<script type="text/javascript" src="jquery/jquery-1.6.2.js"></script>
+<script type="text/javascript" src="jquery/json2.js"></script>
+<script type="text/javascript" src="org/cometd.js"></script>
+<script type="text/javascript" src="jquery/jquery.cometd.js"></script>
 
+<script type="text/javascript">
+	var cometd = $.cometd;
+	
+	$(document).ready(function() {
+		function _connectionEstablished() {
+			$('#body').append('<div>CometD Connection Established</div>');
+		}
+		
+		function _connectionBroken() {
+			$('#body').append('<div>CometD Connection Broken</div>');
+		}
+		
+		function _connectionClosed() {
+			$('#body').append('<div>CometD Connection Closed</div>');
+		}
+		
+		// Function that manages the connection status with the Bayeux server
+		var _connected = false;
+		function _metaConnect(message) {
+			if (cometd.isDisconnected()) {
+				_connected = false;
+				_connectionClosed();
+				return;
+			}
+			
+			var wasConnected = _connected;
+			_connected = message.successful === true;
+			if (!wasConnected && _connected) {
+				_connectionEstablished();
+			}
+			else if (wasConnected && !_connected) {
+				_connectionBroken();
+			}
+		}
+		
+		// Function invoked when first contacting the server and
+		// when the server has lost the state of this client
+		function _metaHandshake(handshake) {
+			if (handshake.successful === true) {
+				cometd.batch(function() {
+					cometd.subscribe('/hello', function(message) {
+						console.log('msg', message);
+						$('#body').append('<div>Server Says: ' + message.data.greeting + '</div>');
+					});
+					// Publish on a service channel since the message is for the server only
+					cometd.publish('/service/hello', {
+						name : 'World'
+					});
+				});
+			}
+		}
+		
+		// Disconnect when the page unloads
+		$(window).unload(function() {
+			cometd.disconnect(true);
+		});
+		
+		var cometURL = "cometd";
+		cometd.configure({
+			url : cometURL
+		//,logLevel : 'debug'
+		});
+		
+		cometd.addListener('/meta/handshake', _metaHandshake);
+		cometd.addListener('/meta/connect', _metaConnect);
+		
+		cometd.handshake();
+	});
+</script>
+
+</head>
 <body>
-	<h2>desu~</h2>
+	<input type="button"
+		onclick="cometd.publish('/hello', { greeting: 'msg[' + Date() + ']' } )"
+		value="ping">
+	<div id="body"></div>
 </body>
-
 </html>
