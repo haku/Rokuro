@@ -19,12 +19,15 @@ public class Main {
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	
 	public static void main (String[] args) throws Exception {
+		// Servlet container.
 		ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletHandler.setContextPath("/");
 		
+		// CometD.
 		ContinuationCometdServlet cometdServlet = new ContinuationCometdServlet();
 		servletHandler.addServlet(new ServletHolder(cometdServlet), "/cometd/*");
 		
+		// Static files on classpath.
 		ResourceHandler resourceHandler = new ResourceHandler();
 		resourceHandler.setDirectoriesListed(true);
 		resourceHandler.setWelcomeFiles(new String[] { "index.html" });
@@ -32,9 +35,11 @@ public class Main {
 		String webrootResource = Main.class.getClassLoader().getResource(webrootClass).toExternalForm();
 		resourceHandler.setResourceBase(webrootResource);
 		
+		// Prepare final handler.
 		HandlerList handlers = new HandlerList();
 		handlers.setHandlers(new Handler[] { resourceHandler, servletHandler });
 		
+		// Listening connector.
 		String portString = System.getenv("PORT");
 		SelectChannelConnector connector = new SelectChannelConnector();
 		connector.setMaxIdleTime(30000); // 30 seconds.
@@ -44,6 +49,7 @@ public class Main {
 		connector.setLowResourcesMaxIdleTime(5000); // 5 seconds.
 		connector.setPort(Integer.parseInt(portString));
 		
+		// Start server.
 		Server server = new Server();
 		server.setHandler(handlers);
 		server.addConnector(connector);
@@ -52,6 +58,7 @@ public class Main {
 		// This must be done after server is started getBayeux() is null before then.
 		cometdServlet.getBayeux().setTimeout(20000); // set long-poll timeout to 20 seconds.
 		
+		// Wait for server thread.
 		logger.info("Server ready.");
 		server.join();
 	}
