@@ -2,7 +2,6 @@ package com.vaguehope.rokoro;
 
 import java.util.logging.Logger;
 
-import org.cometd.server.CometdServlet;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -10,6 +9,7 @@ import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.mortbay.cometd.continuation.ContinuationCometdServlet;
 
 public class Main {
 //	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -21,7 +21,9 @@ public class Main {
 	public static void main (String[] args) throws Exception {
 		ServletContextHandler servletHandler = new ServletContextHandler(ServletContextHandler.SESSIONS);
 		servletHandler.setContextPath("/");
-		servletHandler.addServlet(new ServletHolder(new CometdServlet()), "/cometd/*");
+		
+		ContinuationCometdServlet cometdServlet = new ContinuationCometdServlet();
+		servletHandler.addServlet(new ServletHolder(cometdServlet), "/cometd/*");
 		
 		ResourceHandler resourceHandler = new ResourceHandler();
 		resourceHandler.setDirectoriesListed(true);
@@ -35,17 +37,20 @@ public class Main {
 		
 		String portString = System.getenv("PORT");
 		SelectChannelConnector connector = new SelectChannelConnector();
-		connector.setMaxIdleTime(20000); // 20 seconds.
+		connector.setMaxIdleTime(30000); // 30 seconds.
 		connector.setAcceptors(2);
 		connector.setStatsOn(false);
-		connector.setLowResourcesConnections(25000);
-		connector.setLowResourcesMaxIdleTime(5000);
+		connector.setLowResourcesConnections(1000);
+		connector.setLowResourcesMaxIdleTime(5000); // 5 seconds.
 		connector.setPort(Integer.parseInt(portString));
 		
 		Server server = new Server();
 		server.setHandler(handlers);
 		server.addConnector(connector);
 		server.start();
+		
+		// This must be done after server is started getBayeux() is null before then.
+		cometdServlet.getBayeux().setTimeout(20000); // set long-poll timeout to 20 seconds.
 		
 		logger.info("Server ready.");
 		server.join();
